@@ -17,10 +17,18 @@ const StoreSchema=new mongoose.Schema({
         longitude:{
             type: mongoose.Decimal128,
             required: true
-        } ,        
-        item_list:{
-            type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]
         } ,
+        category_list:{
+            type:[
+                {
+                    category_name:{type:String},
+                    category_item:{type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]}
+                }
+            ]
+        },        
+        // item_list:{
+        //     type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]
+        // } ,
         premium_item_list:{
             type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]
         },
