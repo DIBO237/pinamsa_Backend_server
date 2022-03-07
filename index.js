@@ -19,6 +19,7 @@ const multer=require('multer');
 const Store= require('./models/Store');
 const Item=require('./models/Item');
 const auth=require('./middleware/auth');
+const { exec } = require('child_process');
 app.use(express.json());
 app.get('/',(req,res)=>{
     res.send("Hello");
@@ -100,16 +101,51 @@ app.get('/store/test',auth,async(req,res)=>{
     res.send(req.store);
 })
 
-app.post('/store/add_data',auth,async(req,res)=>{
-    const data=req.body;
-    const store=await Store.findOne({_id:req.store._id}).then(async(store)=>{
+app.post('/store/add_category',auth,async(req,res)=>{
+    //const data=req.body;
+    const store=await Store.findOne({_id:req.store._id}).exec()
+    .then(async (store)=>{
+        if(!store){
+            return res.status(400).send({"error":"problem while fetching the data of store"})
+        }else{
+            store.category_list.push({
+                "category_name":req.body.category_name,
+                "category_item":[]
+            })
+            await store.save().then((store)=>{
+                return res.status(201).send({"store":store})
+            }).catch(e=>{
+                throw new Error("item doesnot get stored due to some error");
+            })
+        }
+    }).catch(e=>{
+        return res.status(400).send({"error":"problem while uploading data to server"});
+    })
+})
+
+app.post('/store/add_item_to_category',auth,async(req,res)=>{
+    //const data=req.body;
+    const store=await Store.findOne({_id:req.store._id}).exec()
+    .then(async(store)=>{
         if(!store){
             return res.status(400).send({"error":"the store doesnot exist"});
         }else{
             const item=await Item(req.body);
             item.store_id=req.store._id;
             await item.save().then(async(item)=>{
-                store.item_list.push(item);
+                store.category_list.map((category_element)=>{
+                    if(category_element.category_name==item.category){
+                        category_element.category_item.push(item)
+                    }
+                })
+                //store..push(item);
+                // const category_element={
+                //     "category_name":item.category,
+                //     "category_item":
+                // }
+                // store.category_list.push({
+                    
+                // })
                 await store.save().then((store)=>{
                     console.log(store);
                     return res.status(200).send({"store":store});
@@ -121,6 +157,46 @@ app.post('/store/add_data',auth,async(req,res)=>{
 
     }).catch(e=>{
         return res.status(400).send({"error":"problem while fetching data from server"});
+    })
+})
+
+app.get('/store/get_categories',auth,async(req,res)=>{
+    const store=await Store.findOne({_id:req.store._id}).exec()
+    .then((store)=>{
+        if(!store){
+            return res.status(400).send({"error":"Couldnot find store"})
+        }else{
+            return res.status(200).send({"category_list":store.category_list});
+        }
+    }).catch(e=>{
+        return res.status(400).send({"error":"An error occur while connecting to server"})
+    })
+})
+
+app.get('/store/get_category_items',auth,async(req,res)=>{
+    //const category=req.query.category;
+    const page=req.query.page;
+    const limit=req.query.limit;
+    const store=await Store.findOne({_id:req.store._id}).exec()
+    .then((store)=>{
+        if(!store){
+            return res.status(400).send({"error":"Couldnot find store"})
+        }else{
+           var temparr=store.category_list.filter(item=>{
+               return item.category_name==req.query.category;
+           })
+           const startIndex=(page-1)*limit;
+           //end index of page
+           const endIndex=page*limit;
+           if(endIndex<temparr.length){
+               endIndex=temparr.length;
+           }
+           var result=temparr.slice(startIndex,endIndex);
+           //return res.status(200).send({"institute_List":result})
+           return res.status(200).send({"store_item":result});
+        }
+    }).catch(e=>{
+        return res.status(400).send({"error":e.message})
     })
 })
 
@@ -156,26 +232,28 @@ app.post('/store/update_item/:id',auth,async(req,res)=>{
     })
 })
 
-app.get('/store/all_item',auth,async(req,res)=>{
-    const page=req.query.page;
-    const limit=req.query.limit;
-    const id=req.store._id;
-    console.log(id);
-    const store=await Store.findOne({_id:id}).populate('item_list').exec()
-    .then((store)=>{
-        const startIndex=(page-1)*limit;
-        //end index of page
-        const endIndex=page*limit;
-        if(endIndex<store.item_list.length){
-            endIndex=store.item_list.length;
-        }
-        var result=store.item_list.slice(startIndex,endIndex);
-        //return res.status(200).send({"institute_List":result})
-        return res.status(200).send({"store_item":result});
-    }).catch(err=>{
-        return res.status(400).send({"message":err.message})
-    })
-})
+// app.get('/store/all_item',auth,async(req,res)=>{
+//     const page=req.query.page;
+//     const limit=req.query.limit;
+//     const id=req.store._id;
+//     console.log(id);
+//     const store=await Store.findOne({_id:id}).populate('item_list').exec()
+//     .then((store)=>{
+//         const startIndex=(page-1)*limit;
+//         //end index of page
+//         const endIndex=page*limit;
+//         if(endIndex<store.item_list.length){
+//             endIndex=store.item_list.length;
+//         }
+//         var result=store.item_list.slice(startIndex,endIndex);
+//         //return res.status(200).send({"institute_List":result})
+//         return res.status(200).send({"store_item":result});
+//     }).catch(err=>{
+//         return res.status(400).send({"message":err.message})
+//     })
+// })
+
+
 
 
 //this is for user app section
@@ -185,22 +263,31 @@ app.get('/user/get_category/:id',async(req,res)=>{
     //const id=req.store._id;
     const id=req.params.id;
     const category=req.query.category;
-   
-    const store=await Store.findOne({_id:id}).then((store)=>{
+    const store=await Store.findOne({_id:id}).populate({
+        path:'category_list',
+        populate:{
+            path:'category_item'
+        }
+    }).exec().then((store)=>{
         if(!store){
             throw new Error("store is not accepting order for the item")
         }else{
-            //var temparr=store.item_list.
+            console.log(store);
+            var temparr=[];
+            store.category_list.map((item)=>{
+                //console.log(item.category_name==category)
+                if(item.category_name==category){
+                    //console.log(item)
+                   temparr=item.category_item
+                }
+            })
         const startIndex=(page-1)*limit;
-        //end index of page
         const endIndex=page*limit;
-        store.item_list.map((item)=>{
-            console.log(item);
-        })
-        if(endIndex<store.item_list.length){
-            endIndex=store.item_list.length;
+        
+        if(endIndex<temparr.length){
+            endIndex=temparr.length;
         }
-        var result=store.item_list.slice(startIndex,endIndex);
+        var result=temparr.slice(startIndex,endIndex);
         //return res.status(200).send({"institute_List":result})
         return res.status(200).send({"store_item":result});
         }
