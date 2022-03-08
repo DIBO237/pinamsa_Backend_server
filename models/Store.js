@@ -11,11 +11,11 @@ const StoreSchema=new mongoose.Schema({
             required: true
         },
         latitude:{
-            type: mongoose.Decimal128,
+            type:String,
             required: true
         } ,
         longitude:{
-            type: mongoose.Decimal128,
+            type:String,
             required: true
         } ,
         category_list:{
