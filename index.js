@@ -297,6 +297,32 @@ app.get('/user/get_category/:id',async(req,res)=>{
     })
 })
 
+app.get('/user/get_items_from_store/:id',async(req,res)=>{
+    const page=req.query.page;
+    const limit=req.query.limit;
+    const store=await Store.findOne({_id:req.params.id}).populate('item_list').exec()
+    .then((store)=>{
+        if(!store){
+            throw new Error("store is not accepting order for the item")
+        }else{
+            
+        const startIndex=(page-1)*limit;
+        const endIndex=page*limit;
+        
+        if(endIndex<store.item_list.length){
+            endIndex=store.item_list.length;
+        }
+        var result=store.item_list.slice(startIndex,endIndex);
+        //return res.status(200).send({"institute_List":result})
+        return res.status(200).send({"store_item":result});
+        }
+    }).catch(err=>{
+        console.log(err);
+        return res.status(400).send({"error":err.message});
+    })
+
+})
+
 app.listen(PORT,()=>{
     console.log("Server is up and running on "+ PORT);
 })
