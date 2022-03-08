@@ -7,11 +7,11 @@ const ItemSchema=new mongoose.Schema({
 
     } ,
     discounted_price:{
-        type: mongoose.Decimal128,
-            required: true
+        type:Number,
+        required: true
     },
     retail_price:{
-        type: mongoose.Decimal128,
+        type: Number,
         required: true
     },
     item_quantity:{
@@ -44,13 +44,13 @@ const ItemSchema=new mongoose.Schema({
         type:[{type:mongoose.Schema.Types.ObjectId,ref:'Review'}]
     },
     carbs:{
-        type: mongoose.Decimal128,
+        type: String
     },
     protein:{
-        type: mongoose.Decimal128
+        type:String
     },
     fat:{
-        type: mongoose.Decimal128
+        type: String
     },
     category:{
         type:String,
