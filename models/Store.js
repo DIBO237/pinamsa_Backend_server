@@ -26,9 +26,9 @@ const StoreSchema=new mongoose.Schema({
                 }
             ]
         },        
-        // item_list:{
-        //     type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]
-        // } ,
+        item_list:{
+            type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]
+        } ,
         premium_item_list:{
             type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]
         },
