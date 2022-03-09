@@ -54,6 +54,10 @@ const StoreSchema=new mongoose.Schema({
         },
         token:{
             type:String
+        },
+        premium_item_count:{
+            type:Number,
+            default:0
         }
 })
 
