@@ -346,8 +346,8 @@ app.get('/user/get_category/:id',async(req,res)=>{
                    temparr=item.category_item
                 }
             })
-        const startIndex=(page-1)*limit;
-        const endIndex=page*limit;
+        var startIndex=(page-1)*limit;
+        var endIndex=page*limit;
         
         if(endIndex<temparr.length){
             endIndex=temparr.length;
@@ -371,8 +371,8 @@ app.get('/user/get_items_from_store/:id',async(req,res)=>{
             throw new Error("store is not accepting order for the item")
         }else{
             
-        const startIndex=(page-1)*limit;
-        const endIndex=page*limit;
+        var startIndex=(page-1)*limit;
+        var endIndex=page*limit;
         
         if(endIndex<store.item_list.length){
             endIndex=store.item_list.length;
