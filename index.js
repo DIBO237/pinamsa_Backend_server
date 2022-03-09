@@ -232,6 +232,71 @@ app.post('/store/update_item/:id',auth,async(req,res)=>{
     })
 })
 
+
+app.post('/store/add_premium_item',auth,async(req,res)=>{
+    const store=await Store.findOne({_id:req.store._id}).exec()
+    .then(async(store)=>{
+        if(!store){
+            return res.status(400).send({"error":"the store doesnot exist"});
+        }else{
+            if(store.premium_item_count>10){
+                return res.status(400).send({"error":"You already have 10 items as premium"})
+            }
+            const item=await Item(req.body);
+            item.store_id=req.store._id;
+            await item.save().then(async(item)=>{
+                store.category_list.map((category_element)=>{
+                    if(category_element.category_name==item.category){
+                        category_element.category_item.push(item)
+                        store.item_list.push(item);
+                        store.premium_item_list.push(item);
+                        store.premium_item_count=store.premium_item_count+1;
+                    }
+                })
+               
+                await store.save().then((store)=>{
+                    console.log(store);
+                    return res.status(200).send({"store":store});
+                })
+            }).catch(e=>{
+                return res.status(400).send({"error":e.message});
+            })
+        }
+
+    }).catch(e=>{
+        return res.status(400).send({"error":"problem while fetching data from server"});
+    })
+})
+
+app.delete('/store/remove_from_premium_item/:id',auth,async(req,res)=>{
+    const store=await Store.findOne({_id:req.store._id}).exec()
+    .then(async(store)=>{
+        if(!store){
+            return res.status(400).send({"error":"the store doesnot exist"});
+        }else{
+            
+            // store.premium_item_list.filter((item)=>{
+            //     return item!==req.params.id
+            // })
+            var result=store.premium_item_list;
+            var index=result.indexOf(req.params.id);
+            if(index>-1){
+                result.splice(index,1);
+                store.premium_item_count=store.premium_item_count-1;
+            }else{
+                return res.status(400).send({"error":"item doesnot exist"})
+            }
+            store.premium_item_list=result;
+            await store.save().then((store)=>{
+                console.log(store);
+                return res.status(200).send({"store":store});
+            })
+        }
+    }).catch(e=>{
+                return res.status(400).send({"error":e.message});
+            })
+})
+
 // app.get('/store/all_item',auth,async(req,res)=>{
 //     const page=req.query.page;
 //     const limit=req.query.limit;
@@ -321,6 +386,20 @@ app.get('/user/get_items_from_store/:id',async(req,res)=>{
         return res.status(400).send({"error":err.message});
     })
 
+})
+
+app.get('/user/get_premium_items/:id',async(req,res)=>{
+    const store=await Store.findOne({_id:req.params.id}).populate('premium_item_list').exec()
+    .then((store)=>{
+        if(!store){
+            throw new Error("store is not accepting order for the item")
+        }else{
+            return res.status(200).send({"premium_list":store.premium_item_list})
+        }
+    }).catch(err=>{
+        console.log(err);
+        return res.status(400).send({"error":err.message});
+    })
 })
 
 app.listen(PORT,()=>{
