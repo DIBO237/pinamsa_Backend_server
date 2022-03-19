@@ -374,7 +374,7 @@ app.get('/user/get_items_from_store/:id',async(req,res)=>{
         var startIndex=(page-1)*limit;
         var endIndex=page*limit;
         
-        if(endIndex<store.item_list.length){
+        if(endIndex>store.item_list.length){
             endIndex=store.item_list.length;
         }
         var result=store.item_list.slice(startIndex,endIndex);
