@@ -17,6 +17,7 @@ const bcrypt =require('bcrypt');
 const jwt=require('jsonwebtoken');
 const multer=require('multer');
 const Store= require('./models/Store');
+const Order=require('./models/Order');
 const Item=require('./models/Item');
 const auth=require('./middleware/auth');
 const { exec } = require('child_process');
@@ -297,6 +298,34 @@ app.delete('/store/remove_from_premium_item/:id',auth,async(req,res)=>{
             })
 })
 
+
+//id is order id
+app.post('/store/put_order_to_dispatched_order_list/:id',auth,async(req,res)=>{
+    const store=await Store.findById({_id:req.store._id}).exec()
+    .then(async(store)=>{
+        if(!store){
+            throw new Error("store is not accepting order for the item")
+        }else{
+            for(var x=0;x<store.order_pending.length;x++){
+                if(store.order_pending[x]._id==req.params.id){
+                    store.order_dispatch.push(store.order_pending[x]);
+                    //arr = arr.filter(item => item !== value)
+                    break;
+                }
+            }
+            store.order_pending = store.order_pending.filter(item => item._id !== req.params.id)
+            await store.save().then(store=>{
+                return res.status(201).send({"store":store})
+            }).catch(err=>{
+                throw new Error("error at server")
+            })
+        }
+    }).catch(err=>{
+        console.log(err);
+        return res.status(400).send({"error":err.message})
+    })
+})
+
 // app.get('/store/all_item',auth,async(req,res)=>{
 //     const page=req.query.page;
 //     const limit=req.query.limit;
@@ -401,6 +430,35 @@ app.get('/user/get_premium_items/:id',async(req,res)=>{
         return res.status(400).send({"error":err.message});
     })
 })
+
+app.post('/user/post_order/:id',async(req,res)=>{
+    const store=await Store.findById({_id:req.params.id}).exec()
+    .then(async(store)=>{
+        if(!store){
+            throw new Error("store is not accepting order for the item")
+        }else{
+            const order=await Order(req.body);
+            
+            await order.save().then(async(order)=>{
+                store.order_pending.push(order._id);
+                await store.save().then((store)=>{
+                    console.log(store);
+                    return res.status(201).send({"order":order})
+                }).catch(err=>{
+                    throw new Error("store is not accepting order for the item")    
+                })
+                
+            }).catch(err=>{
+                throw new Error("store is not accepting order for the item")
+            })
+        }
+    }).catch(err=>{
+        console.log(err);
+        return res.status(400).send({"error":err.message});
+    })
+})
+
+
 
 app.listen(PORT,()=>{
     console.log("Server is up and running on "+ PORT);

@@ -35,15 +35,18 @@ const StoreSchema=new mongoose.Schema({
         img_url:{
             type: String,
         },
-        order_list:{
-            type: Array,
-        } ,
-        order_dispatch:{
-            type: Array,
-        },
-        order_pending:{
-            type: Array,
-        } ,
+        order_list:[{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'Order'
+        }],
+        order_dispatch:[{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'Order'
+        }],
+        order_pending:[{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'Order'
+        }],
         phone:{
             type: String,
             required: true
