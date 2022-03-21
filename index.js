@@ -167,7 +167,12 @@ app.get('/store/get_categories',auth,async(req,res)=>{
         if(!store){
             return res.status(400).send({"error":"Couldnot find store"})
         }else{
-            return res.status(200).send({"category_list":store.category_list});
+            var list=[];
+            store.category_list.map(item=>{
+                list.push({"category_name":item.category_name,"category_image":item.category_image})
+            })
+            return res.status(200).send({"category_list":list});
+            //return res.status(200).send({"category_list":store.category_list});
         }
     }).catch(e=>{
         return res.status(400).send({"error":"An error occur while connecting to server"})
@@ -351,6 +356,25 @@ app.post('/store/put_order_to_dispatched_order_list/:id',auth,async(req,res)=>{
 
 
 //this is for user app section
+
+app.get('/user/get_categories/:id',async(req,res)=>{
+
+    const store=await Store.findById({_id:req.params.id}).exec()
+    .then((store)=>{
+        if(!store){
+            throw new Error("The store is not is not responding right now")
+        }else{
+            var list=[];
+            store.category_list.map(item=>{
+                list.push({"category_name":item.category_name,"category_image":item.category_image})
+            })
+            return res.status(200).send({"category_list":list});
+        }
+    }).catch(err=>{
+        return res.status(400).send({"message":err.message})
+    })
+
+})
 app.get('/user/get_category/:id',async(req,res)=>{
     const page=req.query.page;
     const limit=req.query.limit;

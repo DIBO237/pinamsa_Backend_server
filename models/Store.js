@@ -22,6 +22,7 @@ const StoreSchema=new mongoose.Schema({
             type:[
                 {
                     category_name:{type:String},
+                    category_image:{type:String},
                     category_item:{type:[{type:mongoose.Schema.Types.ObjectId,ref:'Item'}]}
                 }
             ]
