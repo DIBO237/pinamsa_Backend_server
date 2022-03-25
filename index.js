@@ -14,6 +14,7 @@ app.use(
 );
 
 const bcrypt =require('bcrypt');
+const uuid = require('uuid-v4');
 const jwt=require('jsonwebtoken');
 const multer=require('multer');
 const Store= require('./models/Store');
@@ -21,12 +22,76 @@ const Order=require('./models/Order');
 const Item=require('./models/Item');
 const auth=require('./middleware/auth');
 const { exec } = require('child_process');
+var admin = require("firebase-admin");
+
+var serviceAccount = require('./service-account-file.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  storageBucket:process.env.Bucket_firebase
+});
+
+const db=admin.firestore();
+var bucket = admin.storage().bucket();
+// var filename = "image/"
+
+async function uploadFile(filename) {
+
+    const metadata = {
+      metadata: {
+        // This line is very important. It's to create a download token.
+        firebaseStorageDownloadTokens: uuid()
+      },
+      contentType: 'image/png',
+      cacheControl: 'public, max-age=31536000',
+    };
+  
+    // Uploads a local file to the bucket
+    await bucket.upload(filename, {
+      // Support for HTTP requests made with `Accept-Encoding: gzip`
+      gzip: true,
+      metadata: metadata,
+    });
+
+  return new Promise(function(resolve, reject) {
+      var f=filename.slice(7);
+    resolve({"file":f});
+    reject({"error":"Problem while fetching"});
+  });
+  }
+  
+  //uploadFile().catch(console.error);
+
+const fileStorageEngine=multer.diskStorage({
+    destination:(req,file,cb)=>{
+        cb(null,"images")
+    },
+    filename:(req,file,cb)=>{
+        cb(null,Date.now() + "_" + file.originalname)
+    },
+});
+
+const fileFilter=(req,file,cb)=>{
+    if(file.mimetype==='image/jpeg' || file.mimetype==='image/png'){
+        cb(null,true);
+    }else{
+        cb(null,false);
+    }
+}
+
+const upload=multer({storage:fileStorageEngine,
+    limits:{
+    fileSize:1024*1024*4
+},
+fileFilter:fileFilter
+});
+
 app.use(express.json());
 app.get('/',(req,res)=>{
     res.send("Hello");
 })
 
-app.post('/store/register',async(req,res)=>{
+app.post('/store/register',upload.single('image'),async(req,res)=>{
     try{
         const data=req.body;
         if(!data.name && ! data.password){
@@ -49,6 +114,17 @@ app.post('/store/register',async(req,res)=>{
                   );
 
                   store.token=token;
+                  //let temp_file;
+                  if(req.file){
+                    await uploadFile(req.file.path).then((file)=>{
+                        console.log(file.file)
+                        store.img_url=file.file
+                        //console.log(store);
+                    }).catch(err=>{
+                        throw new Error(err.error);
+                    })
+                    }
+                    //store.img_url=temp_file.to_String();
                   await store.save().then((store)=>{
                     return res.status(200).send({
                         "message":store
@@ -102,7 +178,7 @@ app.get('/store/test',auth,async(req,res)=>{
     res.send(req.store);
 })
 
-app.post('/store/add_category',auth,async(req,res)=>{
+app.post('/store/add_category',upload.single('image'),auth,async(req,res)=>{
     //const data=req.body;
     const store=await Store.findOne({_id:req.store._id}).exec()
     .then(async (store)=>{
@@ -111,7 +187,8 @@ app.post('/store/add_category',auth,async(req,res)=>{
         }else{
             store.category_list.push({
                 "category_name":req.body.category_name,
-                "category_item":[]
+                "category_item":[],
+                "category_image":req.file!=undefined || null?req.file.path:''
             })
             await store.save().then((store)=>{
                 return res.status(201).send({"store":store})
@@ -124,8 +201,9 @@ app.post('/store/add_category',auth,async(req,res)=>{
     })
 })
 
-app.post('/store/add_item_to_category',auth,async(req,res)=>{
+app.post('/store/add_item_to_category', upload.array('images',3),auth,async(req,res)=>{
     //const data=req.body;
+    //console.log(req.body);
     const store=await Store.findOne({_id:req.store._id}).exec()
     .then(async(store)=>{
         if(!store){
@@ -133,13 +211,18 @@ app.post('/store/add_item_to_category',auth,async(req,res)=>{
         }else{
             const item=await Item(req.body);
             item.store_id=req.store._id;
+            console.log(req.files)
+            for(var x=0;x<3;x++){
+                item.item_display_image.push(req.files[x].path);    
+            }
+            item.item_image=item.item_display_image[0];
             await item.save().then(async(item)=>{
                 store.category_list.map((category_element)=>{
                     if(category_element.category_name==item.category){
                         category_element.category_item.push(item)
                     }
                 })
-                //store..push(item);
+                store.item_list.push(item);
                 // const category_element={
                 //     "category_name":item.category,
                 //     "category_item":
@@ -219,7 +302,7 @@ app.get('/store/item/:id',auth,async(req,res)=>{
     })
 })
 
-app.post('/store/update_item/:id',auth,async(req,res)=>{
+app.post('/store/update_item/:id',upload.array('images',3),auth,async(req,res)=>{
     const id=req.params.id;
     const data=req.body;
     const item=await Item.findById({_id:id}).exec()
@@ -239,7 +322,7 @@ app.post('/store/update_item/:id',auth,async(req,res)=>{
 })
 
 
-app.post('/store/add_premium_item',auth,async(req,res)=>{
+app.post('/store/add_premium_item',upload.array('images',3),auth,async(req,res)=>{
     const store=await Store.findOne({_id:req.store._id}).exec()
     .then(async(store)=>{
         if(!store){
@@ -250,6 +333,10 @@ app.post('/store/add_premium_item',auth,async(req,res)=>{
             }
             const item=await Item(req.body);
             item.store_id=req.store._id;
+            for(var x=0;x<3;x++){
+                item.item_display_image.push(req.files[x].path);    
+            }
+            item.item_image=item.item_display_image[0];
             await item.save().then(async(item)=>{
                 store.category_list.map((category_element)=>{
                     if(category_element.category_name==item.category){
@@ -366,7 +453,7 @@ app.get('/user/get_categories/:id',async(req,res)=>{
         }else{
             var list=[];
             store.category_list.map(item=>{
-                list.push({"category_name":item.category_name,"category_image":item.category_image})
+                list.push({"category_name":item.category_name,"category_image":item.category_image,"_id":item._id})
             })
             return res.status(200).send({"category_list":list});
         }
@@ -402,7 +489,7 @@ app.get('/user/get_category/:id',async(req,res)=>{
         var startIndex=(page-1)*limit;
         var endIndex=page*limit;
         
-        if(endIndex<temparr.length){
+        if(endIndex>temparr.length){
             endIndex=temparr.length;
         }
         var result=temparr.slice(startIndex,endIndex);
